@@ -2,12 +2,12 @@ import json
 import os
 import psycopg2
 import hashlib
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     '''
-    Business: Authenticate user and return their roles
-    Args: event with httpMethod, body containing email and password
+    Business: Register new user with patient role by default
+    Args: event with httpMethod, body containing email, password, fullName
     Returns: User data with roles or error
     '''
     method: str = event.get('httpMethod', 'GET')
@@ -36,12 +36,21 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     body_data = json.loads(event.get('body', '{}'))
     email = body_data.get('email', '').strip()
     password = body_data.get('password', '').strip()
+    full_name = body_data.get('fullName', '').strip()
     
-    if not email or not password:
+    if not email or not password or not full_name:
         return {
             'statusCode': 400,
             'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Email и пароль обязательны'}),
+            'body': json.dumps({'error': 'Email, пароль и ФИО обязательны'}),
+            'isBase64Encoded': False
+        }
+    
+    if len(password) < 6:
+        return {
+            'statusCode': 400,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({'error': 'Пароль должен содержать минимум 6 символов'}),
             'isBase64Encoded': False
         }
     
@@ -57,57 +66,43 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     conn = psycopg2.connect(dsn)
     cur = conn.cursor()
     
-    cur.execute(
-        "SELECT id, email, full_name, password_hash, active_role FROM users WHERE email = %s",
-        (email,)
-    )
-    user_row = cur.fetchone()
-    
-    if not user_row:
+    cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+    if cur.fetchone():
         cur.close()
         conn.close()
         return {
-            'statusCode': 401,
+            'statusCode': 409,
             'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Неверный email или пароль'}),
+            'body': json.dumps({'error': 'Пользователь с таким email уже существует'}),
             'isBase64Encoded': False
         }
     
-    user_id, user_email, full_name, password_hash, active_role = user_row
-    
-    password_check = hashlib.sha256(password.encode()).hexdigest()
-    if password_check != password_hash and password != password_hash:
-        cur.close()
-        conn.close()
-        return {
-            'statusCode': 401,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Неверный email или пароль'}),
-            'isBase64Encoded': False
-        }
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
     
     cur.execute(
-        "SELECT role FROM user_roles WHERE user_id = %s",
-        (user_id,)
+        "INSERT INTO users (email, password_hash, role, full_name, active_role) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+        (email, password_hash, 'patient', full_name, 'patient')
     )
-    roles_rows = cur.fetchall()
-    roles: List[str] = [row[0] for row in roles_rows]
+    user_id = cur.fetchone()[0]
     
+    cur.execute(
+        "INSERT INTO user_roles (user_id, role) VALUES (%s, %s)",
+        (user_id, 'patient')
+    )
+    
+    conn.commit()
     cur.close()
     conn.close()
-    
-    if not active_role and roles:
-        active_role = roles[0]
     
     return {
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
         'body': json.dumps({
             'user': {
-                'email': user_email,
+                'email': email,
                 'fullName': full_name,
-                'roles': roles,
-                'activeRole': active_role or (roles[0] if roles else 'patient')
+                'roles': ['patient'],
+                'activeRole': 'patient'
             }
         }),
         'isBase64Encoded': False

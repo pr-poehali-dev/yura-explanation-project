@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,19 @@ const Index = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [fullName, setFullName] = useState("");
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('dentalcrm_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('dentalcrm_user');
+      }
+    }
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) return;
@@ -65,6 +78,7 @@ const Index = () => {
       }
       
       setUser(data.user);
+      localStorage.setItem('dentalcrm_user', JSON.stringify(data.user));
     } catch (err) {
       setError('Ошибка соединения с сервером');
     } finally {
@@ -74,7 +88,38 @@ const Index = () => {
 
   const switchRole = (newRole: Role) => {
     if (user) {
-      setUser({ ...user, activeRole: newRole });
+      const updatedUser = { ...user, activeRole: newRole };
+      setUser(updatedUser);
+      localStorage.setItem('dentalcrm_user', JSON.stringify(updatedUser));
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!email || !password || !fullName) return;
+    
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      const response = await fetch('https://functions.poehali.dev/e1e5853c-1ac1-4fd0-994e-c5ac21cf1099', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, fullName })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setError(data.error || 'Ошибка регистрации');
+        return;
+      }
+      
+      setUser(data.user);
+      localStorage.setItem('dentalcrm_user', JSON.stringify(data.user));
+    } catch (err) {
+      setError('Ошибка соединения с сервером');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -82,6 +127,7 @@ const Index = () => {
     setUser(null);
     setEmail("");
     setPassword("");
+    localStorage.removeItem('dentalcrm_user');
   };
 
   if (!user) {
@@ -93,13 +139,28 @@ const Index = () => {
               <Icon name="Activity" size={40} className="text-primary" />
               <h1 className="text-3xl font-bold text-foreground">DentalCRM</h1>
             </div>
-            <p className="text-muted-foreground">Вход в систему</p>
+            <p className="text-muted-foreground">{isRegistering ? 'Регистрация' : 'Вход в систему'}</p>
           </div>
 
           <div className="space-y-4">
             {error && (
               <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
                 {error}
+              </div>
+            )}
+            
+            {isRegistering && (
+              <div>
+                <Label htmlFor="fullName">ФИО</Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="Иван Петров"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="mt-1"
+                  disabled={isLoading}
+                />
               </div>
             )}
             
@@ -111,7 +172,7 @@ const Index = () => {
                 placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && (isRegistering ? handleRegister() : handleLogin())}
                 className="mt-1"
                 disabled={isLoading}
               />
@@ -125,19 +186,32 @@ const Index = () => {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && (isRegistering ? handleRegister() : handleLogin())}
                 className="mt-1"
                 disabled={isLoading}
               />
             </div>
 
             <Button
-              onClick={handleLogin}
+              onClick={isRegistering ? handleRegister : handleLogin}
               className="w-full"
-              disabled={!email || !password || isLoading}
+              disabled={(isRegistering ? (!email || !password || !fullName) : (!email || !password)) || isLoading}
             >
-              {isLoading ? 'Вход...' : 'Войти'}
+              {isLoading ? (isRegistering ? 'Регистрация...' : 'Вход...') : (isRegistering ? 'Зарегистрироваться' : 'Войти')}
             </Button>
+            
+            <div className="text-center">
+              <button
+                onClick={() => {
+                  setIsRegistering(!isRegistering);
+                  setError("");
+                }}
+                className="text-sm text-primary hover:underline"
+                disabled={isLoading}
+              >
+                {isRegistering ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться'}
+              </button>
+            </div>
           </div>
         </Card>
       </div>

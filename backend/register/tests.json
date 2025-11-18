@@ -1,0 +1,39 @@
+{
+  "tests": [
+    {
+      "name": "Successful registration",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "email": "newuser@test.com",
+        "password": "testpass123",
+        "fullName": "Новый Пользователь"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "user": {
+          "email": "string",
+          "fullName": "string",
+          "roles": ["string"],
+          "activeRole": "string"
+        }
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Short password validation",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "email": "test@test.com",
+        "password": "123",
+        "fullName": "Test User"
+      },
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
