@@ -41,17 +41,35 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) return;
     
-    const mockUser: User = {
-      email,
-      fullName: "Иван Петров",
-      roles: ["doctor", "admin", "director"],
-      activeRole: "doctor"
-    };
-    setUser(mockUser);
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      const response = await fetch('https://functions.poehali.dev/3e32cfd0-383e-4c3c-8acf-94461bb4feef', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setError(data.error || 'Ошибка входа');
+        return;
+      }
+      
+      setUser(data.user);
+    } catch (err) {
+      setError('Ошибка соединения с сервером');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const switchRole = (newRole: Role) => {
@@ -79,6 +97,12 @@ const Index = () => {
           </div>
 
           <div className="space-y-4">
+            {error && (
+              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+            
             <div>
               <Label htmlFor="email">Email</Label>
               <Input
@@ -87,7 +111,9 @@ const Index = () => {
                 placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 className="mt-1"
+                disabled={isLoading}
               />
             </div>
 
@@ -99,16 +125,18 @@ const Index = () => {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 className="mt-1"
+                disabled={isLoading}
               />
             </div>
 
             <Button
               onClick={handleLogin}
               className="w-full"
-              disabled={!email || !password}
+              disabled={!email || !password || isLoading}
             >
-              Войти
+              {isLoading ? 'Вход...' : 'Войти'}
             </Button>
           </div>
         </Card>

@@ -1,0 +1,37 @@
+{
+  "tests": [
+    {
+      "name": "Valid login",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "email": "admin@dentalcrm.ru",
+        "password": "admin123"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "user": {
+          "email": "string",
+          "fullName": "string",
+          "roles": ["string"],
+          "activeRole": "string"
+        }
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Invalid credentials",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "email": "wrong@test.com",
+        "password": "wrong"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
