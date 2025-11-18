@@ -3,6 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
 
 type Role = "patient" | "doctor" | "admin" | "director" | "nurse" | "support" | "project_admin";
@@ -11,6 +18,13 @@ interface RoleConfig {
   name: string;
   icon: string;
   color: string;
+}
+
+interface User {
+  email: string;
+  fullName: string;
+  roles: Role[];
+  activeRole: Role;
 }
 
 const roles: Record<Role, RoleConfig> = {
@@ -24,101 +38,192 @@ const roles: Record<Role, RoleConfig> = {
 };
 
 const Index = () => {
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
-    if (!selectedRole || !email || !password) return;
-    console.log("Login:", { role: selectedRole, email });
+    if (!email || !password) return;
+    
+    const mockUser: User = {
+      email,
+      fullName: "Иван Петров",
+      roles: ["doctor", "admin", "director"],
+      activeRole: "doctor"
+    };
+    setUser(mockUser);
   };
 
-  if (!selectedRole) {
+  const switchRole = (newRole: Role) => {
+    if (user) {
+      setUser({ ...user, activeRole: newRole });
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setEmail("");
+    setPassword("");
+  };
+
+  if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
-        <div className="max-w-4xl w-full">
+        <Card className="max-w-md w-full p-8">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-2 mb-4">
               <Icon name="Activity" size={40} className="text-primary" />
-              <h1 className="text-4xl font-bold text-foreground">DentalCRM</h1>
+              <h1 className="text-3xl font-bold text-foreground">DentalCRM</h1>
             </div>
-            <p className="text-muted-foreground text-lg">Выберите роль для входа</p>
+            <p className="text-muted-foreground">Вход в систему</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(Object.keys(roles) as Role[]).map((role) => (
-              <Card
-                key={role}
-                className="p-6 cursor-pointer hover:shadow-lg transition-all hover:scale-105 border-2 hover:border-primary"
-                onClick={() => setSelectedRole(role)}
-              >
-                <div className="flex flex-col items-center text-center gap-4">
-                  <div className={`${roles[role].color} p-4 rounded-full`}>
-                    <Icon name={roles[role].icon} size={32} className="text-white" />
-                  </div>
-                  <h3 className="font-semibold text-lg">{roles[role].name}</h3>
-                </div>
-              </Card>
-            ))}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="user@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="password">Пароль</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            <Button
+              onClick={handleLogin}
+              className="w-full"
+              disabled={!email || !password}
+            >
+              Войти
+            </Button>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
+  const activeRoleConfig = roles[user.activeRole];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
-      <Card className="max-w-md w-full p-8">
-        <button
-          onClick={() => setSelectedRole(null)}
-          className="mb-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Icon name="ArrowLeft" size={20} />
-          Назад
-        </button>
-
-        <div className="text-center mb-8">
-          <div className={`${roles[selectedRole].color} p-4 rounded-full inline-block mb-4`}>
-            <Icon name={roles[selectedRole].icon} size={40} className="text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+      <header className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Icon name="Activity" size={28} className="text-primary" />
+            <h1 className="text-2xl font-bold">DentalCRM</h1>
           </div>
-          <h2 className="text-2xl font-bold mb-2">Вход для {roles[selectedRole].name}</h2>
-          <p className="text-muted-foreground">Введите данные для входа</p>
+
+          <div className="flex items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <div className={`${activeRoleConfig.color} p-1.5 rounded-full`}>
+                    <Icon name={activeRoleConfig.icon} size={16} className="text-white" />
+                  </div>
+                  {activeRoleConfig.name}
+                  <Icon name="ChevronDown" size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {user.roles.map((role) => (
+                  <DropdownMenuItem
+                    key={role}
+                    onClick={() => switchRole(role)}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <div className={`${roles[role].color} p-1.5 rounded-full`}>
+                      <Icon name={roles[role].icon} size={14} className="text-white" />
+                    </div>
+                    {roles[role].name}
+                    {role === user.activeRole && (
+                      <Icon name="Check" size={16} className="ml-auto text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <Icon name="LogOut" size={20} />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-2">Добро пожаловать, {user.fullName}!</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Активная роль:</span>
+            <Badge className={`${activeRoleConfig.color} text-white`}>
+              {activeRoleConfig.name}
+            </Badge>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="user@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1"
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <Icon name="Calendar" size={24} className="text-blue-600" />
+              </div>
+              <h3 className="font-semibold text-lg">Расписание</h3>
+            </div>
+            <p className="text-muted-foreground text-sm">Просмотр и управление записями</p>
+          </Card>
 
-          <div>
-            <Label htmlFor="password">Пароль</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1"
-            />
-          </div>
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-green-100 p-3 rounded-lg">
+                <Icon name="Users" size={24} className="text-green-600" />
+              </div>
+              <h3 className="font-semibold text-lg">Пациенты</h3>
+            </div>
+            <p className="text-muted-foreground text-sm">База данных пациентов</p>
+          </Card>
 
-          <Button
-            onClick={handleLogin}
-            className="w-full"
-            disabled={!email || !password}
-          >
-            Войти
-          </Button>
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-purple-100 p-3 rounded-lg">
+                <Icon name="FileText" size={24} className="text-purple-600" />
+              </div>
+              <h3 className="font-semibold text-lg">Документы</h3>
+            </div>
+            <p className="text-muted-foreground text-sm">Медицинские карты и отчеты</p>
+          </Card>
         </div>
-      </Card>
+
+        <Card className="mt-6 p-6">
+          <h3 className="font-semibold text-lg mb-4">Ваши роли в системе</h3>
+          <div className="flex flex-wrap gap-3">
+            {user.roles.map((role) => (
+              <div
+                key={role}
+                className="flex items-center gap-2 bg-muted px-4 py-2 rounded-lg"
+              >
+                <div className={`${roles[role].color} p-2 rounded-full`}>
+                  <Icon name={roles[role].icon} size={18} className="text-white" />
+                </div>
+                <span className="font-medium">{roles[role].name}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </main>
     </div>
   );
 };
